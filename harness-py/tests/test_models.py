@@ -243,11 +243,24 @@ def test_openai_on_bedrock_maps_effort_to_reasoning_effort():
     assert model.config["additional_request_fields"] == {"reasoning": {"effort": "max"}}
 
 
-@pytest.mark.parametrize("model_id", ["openai.gpt-6-astra", "global.openai.gpt-6-astra", "us.openai.gpt-6-astra"])
-def test_astra_on_bedrock_resolves_effort(model_id):
-    for effort, level in [("auto", "high"), ("low", "low"), ("max", "max"), ("off", "none")]:
+# https://github.com/strands-agents/harness-sdk/issues/5174
+# Bedrock rejects reasoning effort ``none`` on Astra and 6.1 Sol, so ``off`` omits the field there.
+@pytest.mark.parametrize(
+    ("model_id", "off"),
+    [
+        ("openai.gpt-6-astra", None),
+        ("global.openai.gpt-6-astra", None),
+        ("us.openai.gpt-6-astra", None),
+        ("us.openai.gpt-6.1-sol", None),
+        ("us.openai.gpt-6-sol", {"reasoning": {"effort": "none"}}),
+        ("global.openai.gpt-6-luna", {"reasoning": {"effort": "none"}}),
+    ],
+)
+def test_gpt_6_on_bedrock_resolves_effort(model_id, off):
+    for effort, level in [("auto", "high"), ("low", "low"), ("max", "max")]:
         model = resolve(f"bedrock/{model_id}", effort=effort)
         assert model.config["additional_request_fields"] == {"reasoning": {"effort": level}}
+    assert resolve(f"bedrock/{model_id}", effort="off").config.get("additional_request_fields") == off
     with pytest.raises(ValueError, match="not supported"):
         resolve(f"bedrock/{model_id}", effort="minimal")
 

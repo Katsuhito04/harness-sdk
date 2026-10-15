@@ -93,6 +93,7 @@ _BEDROCK_WEB_FETCH_FAMILY_MODELS = {
 _ANTHROPIC_LEVELS = ("low", "medium", "high", "xhigh", "max")
 _OPENAI_LEVELS = ("minimal", "low", "medium", "high", "xhigh", "none")
 _BEDROCK_GPT_LEVELS = ("none", "low", "medium", "high", "xhigh", "max")
+_BEDROCK_GPT_NO_NONE_LEVELS = ("low", "medium", "high", "xhigh", "max")
 _BEDROCK_GPT_OSS_LEVELS = ("low", "medium", "high")
 _BEDROCK_QWEN_LEVELS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
 _BEDROCK_XAI_LEVELS = ("low", "medium", "high", "xhigh")
@@ -146,14 +147,24 @@ def _bedrock_family(model_id: str) -> str:
     return model_id[len(prefix) :]
 
 
+def _bedrock_gpt_levels(family: str) -> tuple[str, ...] | None:
+    """Levels for Bedrock GPT families that take ``reasoning.effort``; Astra and 6.1 Sol reject ``none``."""
+    if family in ("openai.gpt-6-astra", "openai.gpt-6.1-sol"):
+        return _BEDROCK_GPT_NO_NONE_LEVELS
+    if family.startswith("openai.gpt-5.6-") or family in ("openai.gpt-6-sol", "openai.gpt-6-luna"):
+        return _BEDROCK_GPT_LEVELS
+    return None
+
+
 def _bedrock_levels(model_id: str) -> tuple[str, ...]:
     family = _bedrock_family(model_id)
     if family.startswith("anthropic."):
         return _ANTHROPIC_LEVELS if _claude_thinking_mode(family) is not None else ()
     if family.startswith("amazon.nova-2"):
         return _BEDROCK_NOVA_LEVELS
-    if family.startswith("openai.gpt-5.6-") or family == "openai.gpt-6-astra":
-        return _BEDROCK_GPT_LEVELS
+    gpt_levels = _bedrock_gpt_levels(family)
+    if gpt_levels is not None:
+        return gpt_levels
     if family.startswith("openai.gpt-oss-"):
         return _BEDROCK_GPT_OSS_LEVELS
     if family.startswith("qwen."):
@@ -181,7 +192,7 @@ def _bedrock_thinking(model_id: str, effort: str | None) -> dict | None:
         return _claude_thinking_block(family, effort, _claude_max_tokens(model_id) or _ANTHROPIC_MAX_TOKENS)
     if family.startswith("amazon.nova-2"):
         return {"reasoningConfig": {"type": "enabled", "maxReasoningEffort": effort}}
-    if family.startswith("openai.gpt-5.6-") or family == "openai.gpt-6-astra":
+    if _bedrock_gpt_levels(family) is not None:
         return {"reasoning": {"effort": effort}}
     if family.startswith("openai.gpt-oss-"):
         return {"reasoning_effort": effort}

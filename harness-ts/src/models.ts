@@ -89,6 +89,7 @@ const BEDROCK_REGION_PREFIXES = ['global.', 'apac.', 'us.', 'eu.', 'au.', 'jp.']
 const ANTHROPIC_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const OPENAI_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'none'] as const
 const BEDROCK_GPT_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+const BEDROCK_GPT_NO_NONE_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const BEDROCK_GPT_OSS_LEVELS = ['low', 'medium', 'high'] as const
 const BEDROCK_QWEN_LEVELS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 const BEDROCK_XAI_LEVELS = ['low', 'medium', 'high', 'xhigh'] as const
@@ -156,13 +157,25 @@ function bedrockFamily(modelId: string): string {
   return unprefixed ? modelId.slice(unprefixed.length) : modelId
 }
 
+// Bedrock GPT families that take `reasoning.effort`. Astra and 6.1 Sol reject `none`, so `off` omits the field.
+function bedrockGptLevels(family: string): readonly string[] | undefined {
+  if (family === 'openai.gpt-6-astra' || family === 'openai.gpt-6.1-sol') {
+    return BEDROCK_GPT_NO_NONE_LEVELS
+  }
+  if (family.startsWith('openai.gpt-5.6-') || family === 'openai.gpt-6-sol' || family === 'openai.gpt-6-luna') {
+    return BEDROCK_GPT_LEVELS
+  }
+  return undefined
+}
+
 function bedrockLevels(modelId: string): readonly string[] {
   const family = bedrockFamily(modelId)
   if (family.startsWith('anthropic.')) {
     return claudeThinkingMode(family) !== null ? ANTHROPIC_LEVELS : NO_THINKING_LEVELS
   }
-  if (family.startsWith('openai.gpt-5.6-') || family === 'openai.gpt-6-astra') {
-    return BEDROCK_GPT_LEVELS
+  const gptLevels = bedrockGptLevels(family)
+  if (gptLevels !== undefined) {
+    return gptLevels
   }
   if (family.startsWith('openai.gpt-oss-')) {
     return BEDROCK_GPT_OSS_LEVELS
@@ -190,7 +203,7 @@ function bedrockThinking(modelId: string, effort: string | null): JSONValue | un
   if (family.startsWith('anthropic.')) {
     return claudeThinkingBlock(family, effort, claudeMaxTokens(modelId) ?? ANTHROPIC_MAX_TOKENS) as JSONValue
   }
-  if (family.startsWith('openai.gpt-5.6-') || family === 'openai.gpt-6-astra') {
+  if (bedrockGptLevels(family) !== undefined) {
     return { reasoning: { effort } }
   }
   if (family.startsWith('openai.gpt-oss-')) {
