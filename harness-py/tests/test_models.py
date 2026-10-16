@@ -243,8 +243,8 @@ def test_openai_on_bedrock_maps_effort_to_reasoning_effort():
     assert model.config["additional_request_fields"] == {"reasoning": {"effort": "max"}}
 
 
-# https://github.com/strands-agents/harness-sdk/issues/5174
-# Bedrock rejects reasoning effort ``none`` on Astra and 6.1 Sol, so ``off`` omits the field there.
+# GPT-5.x / GPT-6 Bedrock ids match by prefix (#5174, #5191). Bedrock rejects reasoning effort ``none``
+# on Astra and 6.1 Sol, so ``off`` omits the field there; the others send ``none``.
 @pytest.mark.parametrize(
     ("model_id", "off"),
     [
@@ -254,15 +254,26 @@ def test_openai_on_bedrock_maps_effort_to_reasoning_effort():
         ("us.openai.gpt-6.1-sol", None),
         ("us.openai.gpt-6-sol", {"reasoning": {"effort": "none"}}),
         ("global.openai.gpt-6-luna", {"reasoning": {"effort": "none"}}),
+        ("us.openai.gpt-5.6-luna", {"reasoning": {"effort": "none"}}),
     ],
 )
-def test_gpt_6_on_bedrock_resolves_effort(model_id, off):
+def test_gpt_5x_6_on_bedrock_resolves_effort(model_id, off):
     for effort, level in [("auto", "high"), ("low", "low"), ("max", "max")]:
         model = resolve(f"bedrock/{model_id}", effort=effort)
         assert model.config["additional_request_fields"] == {"reasoning": {"effort": level}}
     assert resolve(f"bedrock/{model_id}", effort="off").config.get("additional_request_fields") == off
     with pytest.raises(ValueError, match="not supported"):
         resolve(f"bedrock/{model_id}", effort="minimal")
+
+
+# Bedrock rejects reasoning effort ``max`` on GPT-5.4 and GPT-5.5 (#5191).
+@pytest.mark.parametrize("model_id", ["us.openai.gpt-5.4", "us.openai.gpt-5.5"])
+def test_gpt_5_4_and_5_5_on_bedrock_resolve_effort_without_max(model_id):
+    for effort, level in [("auto", "high"), ("xhigh", "xhigh"), ("off", "none")]:
+        model = resolve(f"bedrock/{model_id}", effort=effort)
+        assert model.config["additional_request_fields"] == {"reasoning": {"effort": level}}
+    with pytest.raises(ValueError, match="not supported"):
+        resolve(f"bedrock/{model_id}", effort="max")
 
 
 def test_gpt_oss_on_bedrock_uses_its_reasoning_field_and_levels():

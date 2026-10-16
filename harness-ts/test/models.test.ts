@@ -145,8 +145,8 @@ describe('resolveModel', () => {
     )
   })
 
-  // https://github.com/strands-agents/harness-sdk/issues/5174
-  // Bedrock rejects reasoning effort `none` on Astra and 6.1 Sol, so `off` omits the field there.
+  // GPT-5.x / GPT-6 Bedrock ids match by prefix (#5174, #5191). Bedrock rejects reasoning effort `none`
+  // on Astra and 6.1 Sol, so `off` omits the field there; the others send `none`.
   it.each([
     ['openai.gpt-6-astra', undefined],
     ['global.openai.gpt-6-astra', undefined],
@@ -154,7 +154,8 @@ describe('resolveModel', () => {
     ['us.openai.gpt-6.1-sol', undefined],
     ['us.openai.gpt-6-sol', { reasoning: { effort: 'none' } }],
     ['global.openai.gpt-6-luna', { reasoning: { effort: 'none' } }],
-  ])('resolves GPT-6 effort for %s', async (modelId, off) => {
+    ['us.openai.gpt-5.6-luna', { reasoning: { effort: 'none' } }],
+  ])('resolves GPT-5.x/6 effort for %s', async (modelId, off) => {
     for (const [thinking, effort] of [
       ['auto', 'high'],
       ['low', 'low'],
@@ -167,6 +168,26 @@ describe('resolveModel', () => {
     await expect(resolve(`bedrock/${modelId}`, 'minimal')).rejects.toThrow(
       "Supported levels: low, medium, high, xhigh, max (or 'auto', 'off')."
     )
+  })
+
+  // Bedrock rejects reasoning effort `max` on GPT-5.4 and GPT-5.5 (#5191).
+  it.each(['us.openai.gpt-5.4', 'us.openai.gpt-5.5'])('resolves GPT-5.4/5.5 effort for %s', async (modelId) => {
+    for (const [thinking, effort] of [
+      ['auto', 'high'],
+      ['xhigh', 'xhigh'],
+      ['off', 'none'],
+    ] as const) {
+      const model = await resolve(`bedrock/${modelId}`, thinking)
+      expect(model.getConfig().additionalRequestFields).toEqual({ reasoning: { effort } })
+    }
+    await expect(resolve(`bedrock/${modelId}`, 'max')).rejects.toThrow(
+      "Supported levels: low, medium, high, xhigh (or 'auto', 'off')."
+    )
+  })
+
+  it('keeps GPT-OSS on its own reasoning_effort field, not the GPT-5/6 prefix', async () => {
+    const model = await resolve('bedrock/openai.gpt-oss-120b-1:0', 'medium')
+    expect(model.getConfig().additionalRequestFields).toEqual({ reasoning_effort: 'medium' })
   })
 
   it('uses the Qwen Bedrock reasoning field and levels', async () => {

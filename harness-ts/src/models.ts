@@ -90,6 +90,7 @@ const ANTHROPIC_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const OPENAI_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'none'] as const
 const BEDROCK_GPT_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 const BEDROCK_GPT_NO_NONE_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+const BEDROCK_GPT_NO_MAX_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const
 const BEDROCK_GPT_OSS_LEVELS = ['low', 'medium', 'high'] as const
 const BEDROCK_QWEN_LEVELS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 const BEDROCK_XAI_LEVELS = ['low', 'medium', 'high', 'xhigh'] as const
@@ -157,15 +158,21 @@ function bedrockFamily(modelId: string): string {
   return unprefixed ? modelId.slice(unprefixed.length) : modelId
 }
 
-// Bedrock GPT families that take `reasoning.effort`. Astra and 6.1 Sol reject `none`, so `off` omits the field.
+// GPT-5.x / GPT-6 on Bedrock take `reasoning.effort`, matched by prefix so a new id in the line works
+// without an edit (gpt-oss has its own `reasoning_effort` branch and is excluded). The overrides list the ids
+// whose accepted levels differ from the full set; without `none`, `off` omits the field.
+const BEDROCK_GPT_LEVEL_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
+  'openai.gpt-5.4': BEDROCK_GPT_NO_MAX_LEVELS,
+  'openai.gpt-5.5': BEDROCK_GPT_NO_MAX_LEVELS,
+  'openai.gpt-6-astra': BEDROCK_GPT_NO_NONE_LEVELS,
+  'openai.gpt-6.1-sol': BEDROCK_GPT_NO_NONE_LEVELS,
+}
+
 function bedrockGptLevels(family: string): readonly string[] | undefined {
-  if (family === 'openai.gpt-6-astra' || family === 'openai.gpt-6.1-sol') {
-    return BEDROCK_GPT_NO_NONE_LEVELS
+  if (!family.startsWith('openai.gpt-5.') && !family.startsWith('openai.gpt-6')) {
+    return undefined
   }
-  if (family.startsWith('openai.gpt-5.6-') || family === 'openai.gpt-6-sol' || family === 'openai.gpt-6-luna') {
-    return BEDROCK_GPT_LEVELS
-  }
-  return undefined
+  return BEDROCK_GPT_LEVEL_OVERRIDES[family] ?? BEDROCK_GPT_LEVELS
 }
 
 function bedrockLevels(modelId: string): readonly string[] {
