@@ -148,9 +148,10 @@ def _bedrock_family(model_id: str) -> str:
     return model_id[len(prefix) :]
 
 
-# GPT-5.x / GPT-6 on Bedrock take ``reasoning.effort``, matched by prefix so a new id in the line works
-# without an edit (gpt-oss has its own ``reasoning_effort`` branch and is excluded). The overrides list the ids
-# whose accepted levels differ from the full set; without ``none``, ``off`` omits the field.
+# GPT-5.x / GPT-6 on Bedrock take ``reasoning.effort``, matched by the same prefixes as the SDK's Mantle routing
+# so a new id in the line works without an edit; the explicit separator keeps ids like gpt-oss out. The overrides
+# list the ids whose accepted levels differ from the full set; without ``none``, ``off`` omits the field.
+_BEDROCK_GPT_PREFIXES = ("openai.gpt-5.", "openai.gpt-6-", "openai.gpt-6.")
 _BEDROCK_GPT_LEVEL_OVERRIDES: dict[str, tuple[str, ...]] = {
     "openai.gpt-5.4": _BEDROCK_GPT_NO_MAX_LEVELS,
     "openai.gpt-5.5": _BEDROCK_GPT_NO_MAX_LEVELS,
@@ -161,7 +162,7 @@ _BEDROCK_GPT_LEVEL_OVERRIDES: dict[str, tuple[str, ...]] = {
 
 def _bedrock_gpt_levels(family: str) -> tuple[str, ...] | None:
     """Levels for Bedrock GPT-5.x / GPT-6 families, which take ``reasoning.effort``."""
-    if not family.startswith("openai.gpt-5.") and not family.startswith("openai.gpt-6"):
+    if not family.startswith(_BEDROCK_GPT_PREFIXES):
         return None
     return _BEDROCK_GPT_LEVEL_OVERRIDES.get(family, _BEDROCK_GPT_LEVELS)
 

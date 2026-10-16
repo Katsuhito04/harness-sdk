@@ -158,9 +158,10 @@ function bedrockFamily(modelId: string): string {
   return unprefixed ? modelId.slice(unprefixed.length) : modelId
 }
 
-// GPT-5.x / GPT-6 on Bedrock take `reasoning.effort`, matched by prefix so a new id in the line works
-// without an edit (gpt-oss has its own `reasoning_effort` branch and is excluded). The overrides list the ids
-// whose accepted levels differ from the full set; without `none`, `off` omits the field.
+// GPT-5.x / GPT-6 on Bedrock take `reasoning.effort`, matched by the same prefixes as the SDK's Mantle routing
+// so a new id in the line works without an edit; the explicit separator keeps ids like gpt-oss out. The overrides
+// list the ids whose accepted levels differ from the full set; without `none`, `off` omits the field.
+const BEDROCK_GPT_PREFIXES = ['openai.gpt-5.', 'openai.gpt-6-', 'openai.gpt-6.'] as const
 const BEDROCK_GPT_LEVEL_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   'openai.gpt-5.4': BEDROCK_GPT_NO_MAX_LEVELS,
   'openai.gpt-5.5': BEDROCK_GPT_NO_MAX_LEVELS,
@@ -169,7 +170,7 @@ const BEDROCK_GPT_LEVEL_OVERRIDES: Readonly<Record<string, readonly string[]>> =
 }
 
 function bedrockGptLevels(family: string): readonly string[] | undefined {
-  if (!family.startsWith('openai.gpt-5.') && !family.startsWith('openai.gpt-6')) {
+  if (!BEDROCK_GPT_PREFIXES.some((prefix) => family.startsWith(prefix))) {
     return undefined
   }
   return BEDROCK_GPT_LEVEL_OVERRIDES[family] ?? BEDROCK_GPT_LEVELS

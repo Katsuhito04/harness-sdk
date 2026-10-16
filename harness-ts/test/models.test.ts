@@ -185,6 +185,11 @@ describe('resolveModel', () => {
     )
   })
 
+  it.each(['openai.gpt-6oss-20b', 'openai.gpt-60-sol'])('does not treat %s as a GPT-6 id', async (modelId) => {
+    expect((await resolve(`bedrock/${modelId}`, 'auto')).getConfig().additionalRequestFields).toBeUndefined()
+    await expect(resolve(`bedrock/${modelId}`, 'high')).rejects.toThrow('not supported')
+  })
+
   it('keeps GPT-OSS on its own reasoning_effort field, not the GPT-5/6 prefix', async () => {
     const model = await resolve('bedrock/openai.gpt-oss-120b-1:0', 'medium')
     expect(model.getConfig().additionalRequestFields).toEqual({ reasoning_effort: 'medium' })

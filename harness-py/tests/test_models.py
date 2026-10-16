@@ -276,6 +276,13 @@ def test_gpt_5_4_and_5_5_on_bedrock_resolve_effort_without_max(model_id):
         resolve(f"bedrock/{model_id}", effort="max")
 
 
+@pytest.mark.parametrize("model_id", ["openai.gpt-6oss-20b", "openai.gpt-60-sol"])
+def test_ids_without_a_gpt_6_separator_take_no_gpt_effort(model_id):
+    assert "additional_request_fields" not in resolve(f"bedrock/{model_id}", effort="auto").config
+    with pytest.raises(ValueError, match="not supported"):
+        resolve(f"bedrock/{model_id}", effort="high")
+
+
 def test_gpt_oss_on_bedrock_uses_its_reasoning_field_and_levels():
     model = resolve("bedrock/openai.gpt-oss-120b-1:0", effort="medium")
     assert model.config["additional_request_fields"] == {"reasoning_effort": "medium"}
